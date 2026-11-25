@@ -1,6 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -O2 -std=c++98
 TARGET = volcano_demo
+INTEGRATED_TARGET = volcano_scene
 CORE_OBJECTS = src/VolcanoScene.o src/VolcanoEffects.o
 AR = ar
 
@@ -14,10 +15,15 @@ src/%.o: src/%.cpp
 
 demo: $(TARGET)
 
+integrated-demo: $(INTEGRATED_TARGET)
+
 $(TARGET): src/demo_main.cpp $(CORE_OBJECTS)
 	$(CXX) $(CXXFLAGS) src/demo_main.cpp $(CORE_OBJECTS) -o $@ -lglut -lGLU -lGL
 
-clean:
-	rm -f $(TARGET) libvolcano.a $(CORE_OBJECTS)
+$(INTEGRATED_TARGET): src/main.cpp $(CORE_OBJECTS)
+	$(CXX) $(CXXFLAGS) src/main.cpp $(CORE_OBJECTS) -o $@ -lglut -lGLU -lGL
 
-.PHONY: all demo clean
+clean:
+	rm -f $(TARGET) $(INTEGRATED_TARGET) libvolcano.a $(CORE_OBJECTS)
+
+.PHONY: all demo integrated-demo clean

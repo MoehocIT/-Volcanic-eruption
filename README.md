@@ -11,6 +11,9 @@
 - Khoi va bui tro duoc tang mat do, co cac hat tro bay toa ra tu mieng nui.
 - Cac dong dung nham phat sang bam theo mesh suon nui, co loi nong va vien glow.
 - Tan lua bay khoi mieng nui theo quy dao co trong luc, tao cam giac phun trao.
+- Ban demo tich hop co chu ky ngay-dem, mat troi/mat trang, sao va anh sang dung nham hắt len dia hinh khi troi toi.
+- Co the doi troi quang, mua va tro roi; rung chan nhe theo chu ky phun trao va he thuc vat tien phong thua tren vung dat xa chan nui.
+- Tang len 10 nhanh dung nham chay doc suon nui, moi nhanh co loi nong va vien glow.
 - Cac puff khoi trong suot duoc ve tu xa den gan; module nui khoi phuc cac trang thai OpenGL sau khi ve.
 - Phap tuyen cho anh sang; toa do giao tiep de nguoi 2 ve dung nham/lua/khoi.
 - `demo_main.cpp` chi la chuong trinh demo de xem model; camera/anh sang chinh do Nguoi 3 dam nhan.
@@ -23,6 +26,7 @@ NuiLua_OpenGL/
   src/VolcanoEffects.h     // API hieu ung
   src/VolcanoEffects.cpp   // dung nham, lua, khoi
   src/demo_main.cpp        // cua so xem rieng
+  src/main.cpp             // demo tich hop camera, anh sang, thoi tiet va dieu khien
   Makefile                 // build Linux
 ```
 
@@ -33,6 +37,11 @@ sudo apt install -y build-essential freeglut3-dev libglu1-mesa-dev
 cd NuiLua_OpenGL
 make demo
 ./volcano_demo
+```
+De chay ban tich hop co ngay-dem, thoi tiet va rung chan:
+```
+make integrated-demo
+./volcano_scene
 ```
 Phai dang trong phien desktop Ubuntu co ho tro hien thi OpenGL. May ao VirtualBox can cau hinh do hoa phu hop.
 Neu chi can module scene/effects de tich hop vao chuong trinh khac, chay `make` de tao `libvolcano.a`; target nay khong can GLUT. Chuong trinh chinh van can cac thu vien OpenGL tuong ung khi link.
@@ -49,7 +58,14 @@ Compiler su dung C++98.
 - + / -: Thu/phong
 - F: Bat/tat wireframe
 - L: Bat/tat anh sang
+- K: Bat/tat anh sang dung nham (anh huong dia hinh ro hon vao ban dem)
 - H: Bat/tat suong khi quyen
+- T: Chuyen tu dong -> ban ngay -> ban dem
+- M: Chuyen troi quang -> tro roi -> mua
+- B: Bat/tat rung chan
+- 1 / 2 / 3: Camera tong quan / mieng nui / tu tren cao
+- G: Bat/tat suong xa
+- Space: Tam dung/tiep tuc phun trao
 - ESC: Thoat
 
 ## Tich hop vao project chung

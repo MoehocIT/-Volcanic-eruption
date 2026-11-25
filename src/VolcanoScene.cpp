@@ -208,6 +208,59 @@ void renderTerrain() {
     }
     glColor3f(1,1,1);
     glDisable(GL_TEXTURE_2D);
+
+    // Sparse pioneer vegetation grows away from the hottest volcanic slopes.
+    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_LINE_BIT);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+    for(int plant=0;plant<78;++plant) {
+        const float angle=2.0f*PI*hash2(plant,223);
+        const float radius=23.0f+17.0f*hash2(plant,227);
+        const float x=radius*std::cos(angle),z=radius*std::sin(angle);
+        const float y=terrainHeight(x,z)+0.015f;
+        const float scale=0.55f+0.75f*hash2(plant,229);
+        const bool sapling=(plant%7)==0;
+
+        if(sapling) {
+            const float trunkHeight=0.75f*scale;
+            const float crownHeight=0.55f*scale;
+            glColor3f(0.25f,0.19f,0.14f);
+            glLineWidth(2.0f);
+            glBegin(GL_LINES);
+            glVertex3f(x,y,z);
+            glVertex3f(x,y+trunkHeight,z);
+            glEnd();
+            glBegin(GL_TRIANGLES);
+            for(int branch=0;branch<4;++branch) {
+                const float a=angle+branch*PI*0.5f;
+                const float dx=std::cos(a),dz=std::sin(a);
+                const float bx=x+dx*0.10f*scale,bz=z+dz*0.10f*scale;
+                glColor3f(0.22f+0.04f*(branch%2),0.30f+0.05f*(branch%2),0.15f);
+                glNormal3f(dx*0.25f,0.85f,dz*0.25f);
+                glVertex3f(bx,y+trunkHeight-0.08f*scale,bz);
+                glVertex3f(x-dz*0.20f*scale,y+trunkHeight+0.02f*scale,z+dx*0.20f*scale);
+                glVertex3f(x+dx*0.03f*scale,y+trunkHeight+crownHeight,z+dz*0.03f*scale);
+            }
+            glEnd();
+        } else {
+            glBegin(GL_TRIANGLES);
+            for(int blade=0;blade<5;++blade) {
+                const float a=angle+blade*(2.0f*PI/5.0f);
+                const float dx=std::cos(a),dz=std::sin(a);
+                const float sideX=-dz*0.11f*scale,sideZ=dx*0.11f*scale;
+                const float height=(0.34f+0.30f*hash2(plant,blade+239))*scale;
+                const float lean=0.20f*scale;
+                const float shade=0.19f+0.10f*hash2(plant,blade+251);
+                glColor3f(shade*0.72f,shade,shade*0.55f);
+                glNormal3f(dx*0.35f,0.88f,dz*0.35f);
+                glVertex3f(x,y,z);
+                glVertex3f(x+sideX,y+0.08f*scale,z+sideZ);
+                glVertex3f(x+dx*lean,y+height,z+dz*lean);
+            }
+            glEnd();
+        }
+    }
+    glPopAttrib();
 }
 
 void renderVolcano() {

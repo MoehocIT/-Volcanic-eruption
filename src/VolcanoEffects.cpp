@@ -9,6 +9,7 @@ const int FLAME_COUNT = 34;
 const int SMOKE_COUNT = 40;
 const int EMBER_COUNT = 48;
 const int ASH_COUNT = 32;
+const int WEATHER_COUNT = 110;
 
 struct Particle {
     float x, y, z;
@@ -20,6 +21,8 @@ Particle flames[FLAME_COUNT];
 Particle smoke[SMOKE_COUNT];
 Particle embers[EMBER_COUNT];
 Particle ash[ASH_COUNT];
+Particle weather[WEATHER_COUNT];
+int weatherMode = 0;
 unsigned int randomState = 0x51F15EEDu;
 float elapsed = 0.0f;
 bool initialized = false;
@@ -107,6 +110,44 @@ void spawnEmber(Particle &p, bool stagger) {
     p.z += p.vz*p.age;
     p.y += p.vy*p.age-2.8f*p.age*p.age;
     p.vy -= 5.6f*p.age;
+}
+
+void spawnWeather(Particle &p, bool stagger) {
+    p.x=range(-40.0f,40.0f); p.z=range(-40.0f,40.0f);
+    p.phase=range(0.0f,2.0f*PI);
+    if(weatherMode==2) {
+        p.vx=range(-1.8f,-0.6f); p.vz=range(0.25f,1.0f);
+        p.vy=range(-17.0f,-12.0f); p.life=range(1.8f,3.0f); p.size=range(0.10f,0.18f);
+    } else {
+        p.vx=range(-1.2f,-0.2f); p.vz=range(0.1f,0.8f);
+        p.vy=range(-1.5f,-0.35f); p.life=range(8.0f,16.0f); p.size=range(0.035f,0.09f);
+    }
+    p.y=weatherMode==2?range(4.0f,38.0f):range(2.0f,34.0f);
+    const float maxAge=weatherMode==2?p.y/(-p.vy)*0.82f:p.life;
+    p.age=stagger?range(0.0f,maxAge):0.0f;
+    p.x+=p.vx*p.age; p.y+=p.vy*p.age; p.z+=p.vz*p.age;
+}
+
+void drawWeather() {
+    if(weatherMode==0) return;
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    if(weatherMode==2) {
+        glLineWidth(1.25f); glBegin(GL_LINES);
+        for(int i=0;i<WEATHER_COUNT;++i) {
+            const Particle &p=weather[i];
+            glColor4f(0.62f,0.76f,0.88f,0.48f); glVertex3f(p.x,p.y,p.z);
+            glColor4f(0.62f,0.76f,0.88f,0.08f);
+            glVertex3f(p.x-p.vx*0.035f,p.y+0.62f,p.z-p.vz*0.035f);
+        }
+        glEnd();
+    } else {
+        glPointSize(2.0f); glBegin(GL_POINTS);
+        for(int i=0;i<WEATHER_COUNT;++i) {
+            const Particle &p=weather[i]; glColor4f(0.30f,0.27f,0.23f,0.48f);
+            glVertex3f(p.x,p.y,p.z);
+        }
+        glEnd();
+    }
 }
 
 void billboardBasis(float &rightX, float &rightY, float &rightZ,
@@ -277,13 +318,13 @@ void drawLavaFlowLayer(int flow, float baseAngle, float widthScale,
 }
 
 void drawLavaFlows() {
-    static const float flowAngles[] = {0.28f, 1.43f, 2.61f, 3.72f, 5.02f};
+    static const float flowAngles[] = {0.12f,0.78f,1.43f,2.08f,2.74f,3.39f,4.05f,4.70f,5.36f,5.91f};
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
 
-    for (int flow = 0; flow < 5; ++flow) {
+    for (int flow = 0; flow < 10; ++flow) {
         drawLavaFlowLayer(flow,flowAngles[flow],1.8f,0.80f,0.035f,0.002f,0.24f);
         drawLavaFlowLayer(flow,flowAngles[flow],0.92f,1.00f,0.17f,0.006f,0.60f);
         drawLavaFlowLayer(flow,flowAngles[flow],0.36f,1.00f,0.62f,0.075f,0.88f);
@@ -434,6 +475,7 @@ void init() {
     for (int i = 0; i < SMOKE_COUNT; ++i) spawnSmoke(smoke[i], true);
     for (int i = 0; i < EMBER_COUNT; ++i) spawnEmber(embers[i], true);
     for (int i = 0; i < ASH_COUNT; ++i) spawnAsh(ash[i], true);
+    for (int i = 0; i < WEATHER_COUNT; ++i) spawnWeather(weather[i], true);
     initialized = true;
 }
 
@@ -485,6 +527,11 @@ void update(float deltaSeconds) {
             p.vy-=2.6f*dt;
         }
     }
+    if(weatherMode!=0) for(int i=0;i<WEATHER_COUNT;++i) {
+        Particle &p=weather[i]; p.age+=dt;
+        if(p.age>=p.life || p.y<-2.0f) spawnWeather(p,false);
+        else { p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; }
+    }
 }
 
 void draw() {
@@ -494,7 +541,8 @@ void draw() {
     billboardBasis(rightX, rightY, rightZ, upX, upY, upZ);
 
     glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_COLOR_BUFFER_BIT |
-                 GL_DEPTH_BUFFER_BIT | GL_TEXTURE_BIT | GL_POLYGON_BIT);
+                 GL_DEPTH_BUFFER_BIT | GL_TEXTURE_BIT | GL_POLYGON_BIT |
+                 GL_LINE_BIT | GL_POINT_BIT);
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
@@ -510,9 +558,18 @@ void draw() {
     drawEmbers(rightX, rightY, rightZ, upX, upY, upZ);
     drawAsh(rightX,rightY,rightZ,upX,upY,upZ);
     drawSmoke(rightX,rightY,rightZ,upX,upY,upZ);
+    drawWeather();
 
     glPopAttrib();
 }
+
+void setWeatherMode(WeatherMode mode) {
+    if(mode<WEATHER_CLEAR || mode>WEATHER_RAIN) mode=WEATHER_CLEAR;
+    weatherMode=(int)mode;
+    for(int i=0;i<WEATHER_COUNT;++i) spawnWeather(weather[i],true);
+}
+
+WeatherMode getWeatherMode() { return (WeatherMode)weatherMode; }
 
 void release() {
     initialized = false;
