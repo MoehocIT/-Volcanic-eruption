@@ -3,11 +3,13 @@
 ## Pham vi hoan thanh
 - Dia hinh 3D dang heightmap tao tu value noise; mat dat co doi nhe bao quanh nui.
 - Dia hinh co doi tro va song nui nho, phu texture tro den am va da bazan low-poly quanh chan nui.
+- Duong chan troi co cac day nui lua xa, them chieu sau cho vung dat xung quanh.
 - Nui lua 3D mesh vong tron voi suon doc, mieng rong va long chao ben trong.
 - Mat da va mat dat su dung procedural texture OpenGL, khong phai tai anh.
 - Mesh tinh duoc cache bang OpenGL display list sau lan ve dau tien, tranh tinh lai noise va phap tuyen moi khung hinh.
 - Hieu ung dung nham chuyen dong, lua va khoi billboards duoc cap nhat theo delta time.
 - Cac dong dung nham phat sang bam theo mesh suon nui, co loi nong va vien glow.
+- Tan lua bay khoi mieng nui theo quy dao co trong luc, tao cam giac phun trao.
 - Cac puff khoi trong suot duoc ve tu xa den gan; module nui khoi phuc cac trang thai OpenGL sau khi ve.
 - Phap tuyen cho anh sang; toa do giao tiep de nguoi 2 ve dung nham/lua/khoi.
 - `demo_main.cpp` chi la chuong trinh demo de xem model; camera/anh sang chinh do Nguoi 3 dam nhan.

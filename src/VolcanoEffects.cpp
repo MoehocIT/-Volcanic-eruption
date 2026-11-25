@@ -7,6 +7,7 @@ namespace {
 const float PI = 3.14159265358979323846f;
 const int FLAME_COUNT = 34;
 const int SMOKE_COUNT = 24;
+const int EMBER_COUNT = 48;
 
 struct Particle {
     float x, y, z;
@@ -16,6 +17,7 @@ struct Particle {
 
 Particle flames[FLAME_COUNT];
 Particle smoke[SMOKE_COUNT];
+Particle embers[EMBER_COUNT];
 unsigned int randomState = 0x51F15EEDu;
 float elapsed = 0.0f;
 bool initialized = false;
@@ -63,6 +65,25 @@ void spawnSmoke(Particle &p, bool stagger) {
     p.y += p.vy * p.age;
     p.x += p.vx * p.age;
     p.z += p.vz * p.age;
+}
+
+void spawnEmber(Particle &p, bool stagger) {
+    const float angle = range(0.0f,2.0f*PI);
+    const float radius = std::sqrt(random01())*0.38f;
+    p.x = VolcanoScene::craterCenterX()+radius*std::cos(angle);
+    p.z = VolcanoScene::craterCenterZ()+radius*std::sin(angle);
+    p.y = VolcanoScene::craterCenterY()+0.02f;
+    p.vx = range(-1.35f,1.35f);
+    p.vz = range(-1.35f,1.35f);
+    p.vy = range(4.2f,8.2f);
+    p.life = range(0.75f,1.55f);
+    p.age = stagger ? range(0.0f,p.life) : 0.0f;
+    p.size = range(0.07f,0.15f);
+    p.phase = range(0.0f,2.0f*PI);
+    p.x += p.vx*p.age;
+    p.z += p.vz*p.age;
+    p.y += p.vy*p.age-2.8f*p.age*p.age;
+    p.vy -= 5.6f*p.age;
 }
 
 void billboardBasis(float &rightX, float &rightY, float &rightZ,
@@ -221,6 +242,41 @@ void drawFlames(float rightX, float rightY, float rightZ,
     }
 }
 
+void drawEmbers(float rightX, float rightY, float rightZ,
+                float upX, float upY, float upZ) {
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+    for(int i=0;i<EMBER_COUNT;++i) {
+        const Particle &p=embers[i];
+        const float t=p.age/p.life;
+        const float fade=(1.0f-t)*(0.72f+0.28f*std::sin(elapsed*18.0f+p.phase));
+        const float speed=std::sqrt(p.vx*p.vx+p.vy*p.vy+p.vz*p.vz);
+        const float trailLength=p.size*(2.0f+speed*0.35f);
+        const float invSpeed=speed>0.0001f ? 1.0f/speed : 0.0f;
+
+        glBegin(GL_LINES);
+        glColor4f(1.0f,0.72f,0.12f,0.78f*fade);
+        glVertex3f(p.x,p.y,p.z);
+        glColor4f(1.0f,0.10f,0.005f,0.0f);
+        glVertex3f(p.x-p.vx*invSpeed*trailLength,
+                   p.y-p.vy*invSpeed*trailLength,
+                   p.z-p.vz*invSpeed*trailLength);
+        glEnd();
+
+        const float halfWidth=p.size*0.42f;
+        const float halfHeight=p.size*1.7f;
+        glBegin(GL_TRIANGLES);
+        glColor4f(1.0f,0.25f,0.015f,0.6f*fade);
+        vertexBillboard(p.x,p.y,p.z,rightX,rightY,rightZ,upX,upY,upZ,
+                        -halfWidth,-halfHeight);
+        vertexBillboard(p.x,p.y,p.z,rightX,rightY,rightZ,upX,upY,upZ,
+                        halfWidth,-halfHeight);
+        glColor4f(1.0f,0.94f,0.42f,0.9f*fade);
+        vertexBillboard(p.x,p.y,p.z,rightX,rightY,rightZ,upX,upY,upZ,
+                        0.0f,halfHeight);
+        glEnd();
+    }
+}
+
 void drawSmoke(float rightX, float rightY, float rightZ,
                float upX, float upY, float upZ) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -282,6 +338,7 @@ void init() {
     elapsed = 0.0f;
     for (int i = 0; i < FLAME_COUNT; ++i) spawnFlame(flames[i], true);
     for (int i = 0; i < SMOKE_COUNT; ++i) spawnSmoke(smoke[i], true);
+    for (int i = 0; i < EMBER_COUNT; ++i) spawnEmber(embers[i], true);
     initialized = true;
 }
 
@@ -311,6 +368,17 @@ void update(float deltaSeconds) {
             p.y += p.vy * dt;
         }
     }
+    for (int i = 0; i < EMBER_COUNT; ++i) {
+        Particle &p=embers[i];
+        p.age+=dt;
+        if(p.age>=p.life) spawnEmber(p,false);
+        else {
+            p.x+=p.vx*dt;
+            p.z+=p.vz*dt;
+            p.y+=p.vy*dt-2.8f*dt*dt;
+            p.vy-=5.6f*dt;
+        }
+    }
 }
 
 void draw() {
@@ -331,6 +399,7 @@ void draw() {
     drawLava();
     drawLavaFlows();
     drawFlames(rightX, rightY, rightZ, upX, upY, upZ);
+    drawEmbers(rightX, rightY, rightZ, upX, upY, upZ);
     drawSmoke(rightX, rightY, rightZ, upX, upY, upZ);
 
     glPopAttrib();

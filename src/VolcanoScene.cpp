@@ -208,6 +208,46 @@ void renderTerrain() {
     }
     glColor3f(1,1,1);
     glDisable(GL_TEXTURE_2D);
+
+    // Low volcanic ridges add a distant horizon behind the main mountain.
+    static const float ridgeX[] = {-34.0f, 34.0f, 41.0f, -40.0f, 19.0f, -20.0f};
+    static const float ridgeZ[] = {-29.0f, -31.0f, 1.0f, 10.0f, 39.0f, 38.0f};
+    static const float ridgeRadius[] = {5.5f, 5.0f, 4.4f, 4.8f, 4.8f, 5.0f};
+    static const float ridgeHeight[] = {9.0f, 11.5f, 7.0f, 8.5f, 12.0f, 9.5f};
+    const int RIDGE_SEGMENTS=18;
+    for(int ridge=0;ridge<6;++ridge) {
+        RockPoint base[RIDGE_SEGMENTS+1];
+        const float rotation=0.13f*ridge;
+        for(int i=0;i<=RIDGE_SEGMENTS;++i) {
+            const int index=i%RIDGE_SEGMENTS;
+            const float angle=rotation+2.0f*PI*index/RIDGE_SEGMENTS;
+            const float irregular=0.82f+0.18f*hash2(ridge,index+211);
+            base[i].x=ridgeX[ridge]+ridgeRadius[ridge]*irregular*std::cos(angle);
+            base[i].z=ridgeZ[ridge]+ridgeRadius[ridge]*irregular*std::sin(angle);
+            base[i].y=terrainHeight(base[i].x,base[i].z)+0.04f;
+        }
+        const RockPoint tip={ridgeX[ridge]+ridgeRadius[ridge]*0.16f,
+                             terrainHeight(ridgeX[ridge],ridgeZ[ridge])+ridgeHeight[ridge],
+                             ridgeZ[ridge]-ridgeRadius[ridge]*0.12f};
+        const float shade=0.38f+0.045f*(ridge%3);
+        glColor3f(shade,shade*0.96f,shade*0.92f);
+        glBegin(GL_TRIANGLES);
+        for(int i=0;i<RIDGE_SEGMENTS;++i) {
+            const RockPoint &a=base[i],&b=tip,&c=base[i+1];
+            const float abx=b.x-a.x,aby=b.y-a.y,abz=b.z-a.z;
+            const float acx=c.x-a.x,acy=c.y-a.y,acz=c.z-a.z;
+            float nx=aby*acz-abz*acy;
+            float ny=abz*acx-abx*acz;
+            float nz=abx*acy-aby*acx;
+            const float length=std::sqrt(nx*nx+ny*ny+nz*nz);
+            if(length>0.0001f) glNormal3f(nx/length,ny/length,nz/length);
+            glVertex3f(a.x,a.y,a.z);
+            glVertex3f(b.x,b.y,b.z);
+            glVertex3f(c.x,c.y,c.z);
+        }
+        glEnd();
+    }
+    glColor3f(1,1,1);
 }
 
 void renderVolcano() {
