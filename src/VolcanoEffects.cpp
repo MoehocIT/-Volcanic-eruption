@@ -192,6 +192,63 @@ void drawLava() {
     }
 }
 
+void drawCraterRimGlow() {
+    const int SEGMENTS=96;
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+    glBegin(GL_QUAD_STRIP);
+    for(int i=0;i<=SEGMENTS;++i) {
+        const float angle=2.0f*PI*i/SEGMENTS;
+        const float pulse=0.65f+0.35f*std::sin(elapsed*4.2f+angle*7.0f);
+        const float innerRadius=3.24f;
+        const float outerRadius=3.53f;
+        const float innerY=VolcanoScene::volcanoSurfaceY(innerRadius,angle)+0.055f;
+        const float outerY=VolcanoScene::volcanoSurfaceY(outerRadius,angle)+0.055f;
+        glColor4f(1.0f,0.12f,0.008f,0.36f*pulse);
+        glVertex3f(innerRadius*std::cos(angle),innerY,innerRadius*std::sin(angle));
+        glColor4f(1.0f,0.48f,0.045f,0.82f*pulse);
+        glVertex3f(outerRadius*std::cos(angle),outerY,outerRadius*std::sin(angle));
+    }
+    glEnd();
+}
+
+void drawFlameTongue(float x,float y,float z,
+                     float rightX,float rightY,float rightZ,
+                     float upX,float upY,float upZ,
+                     float width,float height,float sway,float alpha) {
+    glBegin(GL_TRIANGLES);
+    glColor4f(1.0f,0.12f,0.005f,0.82f*alpha);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,-width,0.0f);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,width,0.0f);
+    glColor4f(1.0f,0.38f,0.015f,0.18f*alpha);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway,height,0.0f);
+
+    glColor4f(1.0f,0.42f,0.015f,0.92f*alpha);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,-width*0.48f,0.0f);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,width*0.48f,0.0f);
+    glColor4f(1.0f,0.94f,0.28f,0.78f*alpha);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway*0.45f,height*0.58f,0.0f);
+    glEnd();
+}
+
+void drawMouthFountain(float rightX,float rightY,float rightZ,
+                       float upX,float upY,float upZ) {
+    const float baseX=VolcanoScene::craterCenterX();
+    const float baseY=VolcanoScene::craterCenterY()-0.65f;
+    const float baseZ=VolcanoScene::craterCenterZ();
+    const float pulse=0.5f+0.5f*std::sin(elapsed*3.1f);
+    const float flare=0.84f+0.16f*std::sin(elapsed*8.0f);
+
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+    drawFlameTongue(baseX,baseY,baseZ,rightX,rightY,rightZ,upX,upY,upZ,
+                    0.76f,4.2f+1.0f*pulse,0.12f*std::sin(elapsed*3.7f),0.78f*flare);
+    drawFlameTongue(baseX+rightX*0.32f,baseY+rightY*0.32f,baseZ+rightZ*0.32f,
+                    rightX,rightY,rightZ,upX,upY,upZ,
+                    0.43f,3.0f+0.7f*pulse,-0.16f*std::sin(elapsed*4.4f),0.92f*flare);
+    drawFlameTongue(baseX-rightX*0.29f,baseY-rightY*0.29f,baseZ-rightZ*0.29f,
+                    rightX,rightY,rightZ,upX,upY,upZ,
+                    0.38f,2.6f+0.6f*pulse,0.14f*std::cos(elapsed*4.9f),0.86f*flare);
+}
+
 void drawLavaFlowLayer(int flow, float baseAngle, float widthScale,
                        float red, float green, float blue, float alpha) {
     const int STEPS = 48;
@@ -447,6 +504,8 @@ void draw() {
 
     drawLava();
     drawLavaFlows();
+    drawCraterRimGlow();
+    drawMouthFountain(rightX,rightY,rightZ,upX,upY,upZ);
     drawFlames(rightX, rightY, rightZ, upX, upY, upZ);
     drawEmbers(rightX, rightY, rightZ, upX, upY, upZ);
     drawAsh(rightX,rightY,rightZ,upX,upY,upZ);
