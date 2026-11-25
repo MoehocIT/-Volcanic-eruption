@@ -11,6 +11,8 @@ const float CRATER_R = 3.4f;
 const float LAVA_FLOOR_Y = 12.0f;
 GLuint rockTexture = 0;
 GLuint groundTexture = 0;
+GLuint terrainList = 0;
+GLuint volcanoList = 0;
 
 float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
 float smooth(float t) { t = clamp01(t); return t * t * (3.0f - 2.0f * t); }
@@ -30,8 +32,11 @@ float terrainHeight(float x, float z) {
     const float r = std::sqrt(x*x + z*z);
     // Chan nui bang phang de khop mesh nui lua voi mat dat.
     const float fade = smooth((r - 17.0f) / 9.0f);
-    const float hills = 2.8f * (noise(x*0.055f,z*0.055f)-0.48f)
-                      + 0.85f * (noise(x*0.16f,z*0.16f)-0.5f);
+    const float ridge = 1.0f - std::fabs(2.0f * noise(x*0.105f+13.7f,
+                                                       z*0.105f-8.2f)-1.0f);
+    const float hills = 3.0f * (noise(x*0.055f,z*0.055f)-0.5f)
+                      + 1.05f * (noise(x*0.16f,z*0.16f)-0.5f)
+                      + 0.8f * (ridge-0.48f);
     return hills * fade;
 }
 float profile(float r) {
@@ -74,9 +79,11 @@ void makeTexture(GLuint &id, bool rock) {
             pixels[k+1] = (unsigned char)(69 + grain);
             pixels[k+2] = (unsigned char)(67 + grain);
         } else {
-            pixels[k]   = (unsigned char)(92 + grain*0.6f);
-            pixels[k+1] = (unsigned char)(94 + grain*0.8f);
-            pixels[k+2] = (unsigned char)(70 + grain*0.5f);
+            // Dark warm ash instead of the previous green-tinted ground.
+            const float ash = 50.0f + grain*0.48f;
+            pixels[k]   = (unsigned char)(ash + 7.0f);
+            pixels[k+1] = (unsigned char)(ash + 2.0f);
+            pixels[k+2] = (unsigned char)(ash - 3.0f);
         }
     }
     glGenTextures(1, &id);
@@ -106,13 +113,7 @@ void makeTexture(GLuint &id, bool rock) {
     }
 }
 
-}
-namespace VolcanoScene {
-void initTextures() {
-    if(!rockTexture) makeTexture(rockTexture,true);
-    if(!groundTexture) makeTexture(groundTexture,false);
-}
-void drawTerrain() {
+void renderTerrain() {
     const int COUNT=100;
     const float step=2.0f*TERRAIN_HALF/COUNT;
     glEnable(GL_TEXTURE_2D);
@@ -137,9 +138,79 @@ void drawTerrain() {
         }
         glEnd();
     }
+
+    // Scatter low-poly basalt around the mountain, outside its footprint.
+    struct RockPoint { float x, y, z; };
+    const int ROCK_SEGMENTS=6;
+    for(int rock=0;rock<180;++rock) {
+        const float x=-42.0f+84.0f*hash2(rock,31);
+        const float z=-42.0f+84.0f*hash2(rock,97);
+        const float distance=std::sqrt(x*x+z*z);
+        if(distance<21.0f || distance>45.5f) continue;
+
+        const float size=0.30f+0.78f*hash2(rock,57);
+        const float height=size*(1.05f+0.55f*hash2(rock,73));
+        const float baseY=terrainHeight(x,z)-size*0.08f;
+        const float rotation=2.0f*PI*hash2(rock,121);
+        RockPoint bottom[ROCK_SEGMENTS+1];
+        RockPoint middle[ROCK_SEGMENTS+1];
+        RockPoint upper[ROCK_SEGMENTS+1];
+        for(int i=0;i<=ROCK_SEGMENTS;++i) {
+            const int index=i%ROCK_SEGMENTS;
+            const float angle=rotation+2.0f*PI*index/ROCK_SEGMENTS;
+            const float wobble=0.86f+0.24f*hash2(rock*7+index,149);
+            const float c=std::cos(angle),s=std::sin(angle);
+            bottom[i].x=x+size*0.66f*wobble*c;
+            bottom[i].y=baseY+size*0.07f;
+            bottom[i].z=z+size*0.66f*wobble*s;
+            middle[i].x=x+size*wobble*c;
+            middle[i].y=baseY+height*0.32f;
+            middle[i].z=z+size*wobble*s;
+            upper[i].x=x+size*0.62f*wobble*std::cos(angle+0.11f);
+            upper[i].y=baseY+height*0.76f;
+            upper[i].z=z+size*0.62f*wobble*std::sin(angle+0.11f);
+        }
+
+        const RockPoint tip={x+size*0.12f*(hash2(rock,167)-0.5f),
+                             baseY+height,
+                             z+size*0.12f*(hash2(rock,179)-0.5f)};
+        const float shade=0.48f+0.18f*hash2(rock,191);
+        glColor3f(shade,shade*0.91f,shade*0.82f);
+        glBegin(GL_TRIANGLES);
+        for(int i=0;i<ROCK_SEGMENTS;++i) {
+            const RockPoint &b0=bottom[i],&b1=bottom[i+1];
+            const RockPoint &m0=middle[i],&m1=middle[i+1];
+            const RockPoint &u0=upper[i],&u1=upper[i+1];
+            const RockPoint *triangles[5][3] = {
+                {&b0,&m0,&m1}, {&b0,&m1,&b1},
+                {&m0,&u0,&u1}, {&m0,&u1,&m1},
+                {&u0,&tip,&u1}
+            };
+            for(int t=0;t<5;++t) {
+                const RockPoint &a=*triangles[t][0];
+                const RockPoint &b=*triangles[t][1];
+                const RockPoint &c=*triangles[t][2];
+                const float abx=b.x-a.x,aby=b.y-a.y,abz=b.z-a.z;
+                const float acx=c.x-a.x,acy=c.y-a.y,acz=c.z-a.z;
+                float nx=aby*acz-abz*acy;
+                float ny=abz*acx-abx*acz;
+                float nz=abx*acy-aby*acx;
+                const float length=std::sqrt(nx*nx+ny*ny+nz*nz);
+                if(length>0.0001f) glNormal3f(nx/length,ny/length,nz/length);
+                const RockPoint *points[3]={&a,&b,&c};
+                for(int v=0;v<3;++v) {
+                    glTexCoord2f(points[v]->x*0.15f,points[v]->z*0.15f);
+                    glVertex3f(points[v]->x,points[v]->y,points[v]->z);
+                }
+            }
+        }
+        glEnd();
+    }
+    glColor3f(1,1,1);
     glDisable(GL_TEXTURE_2D);
 }
-void drawVolcano() {
+
+void renderVolcano() {
     const int SEG=128, RINGS=90;
     const float maxR=19.5f;
     glEnable(GL_TEXTURE_2D);
@@ -156,7 +227,6 @@ void drawVolcano() {
             const float dr=0.05f,da=0.005f;
             const float hR=(mountainHeight(r0+dr,a)-mountainHeight(r0-dr,a))/(2*dr);
             const float hA=(mountainHeight(r0,a+da)-mountainHeight(r0,a-da))/(2*da);
-            // Surface y=f(r,a): normal ~ (-dy/dx,1,-dy/dz).
             const float slopeX=hR*std::cos(a)-hA*std::sin(a)/r0;
             const float slopeZ=hR*std::sin(a)+hA*std::cos(a)/r0;
             glNormal3f(-slopeX,1.0f,-slopeZ);vertexMountain(r0,a);
@@ -182,8 +252,48 @@ void drawVolcano() {
     glEnd();
     glColor3f(1,1,1);
 }
+
+GLuint buildList(void (*render)()) {
+    const GLuint list=glGenLists(1);
+    if(!list) return 0;
+    glNewList(list,GL_COMPILE);
+    render();
+    glEndList();
+    return list;
+}
+
+}
+namespace VolcanoScene {
+void initTextures() {
+    glPushAttrib(GL_TEXTURE_BIT);
+    if(!rockTexture) makeTexture(rockTexture,true);
+    if(!groundTexture) makeTexture(groundTexture,false);
+    glPopAttrib();
+}
+void drawTerrain() {
+    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_TEXTURE_BIT | GL_POLYGON_BIT);
+    if(!groundTexture) initTextures();
+    if(!terrainList) terrainList=buildList(renderTerrain);
+    // glBindTexture is not guaranteed to be stored in a display list.
+    glBindTexture(GL_TEXTURE_2D,groundTexture);
+    if(terrainList) glCallList(terrainList);
+    else renderTerrain();
+    glPopAttrib();
+}
+void drawVolcano() {
+    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_TEXTURE_BIT | GL_POLYGON_BIT);
+    if(!rockTexture) initTextures();
+    if(!volcanoList) volcanoList=buildList(renderVolcano);
+    // Bind on every draw so cached geometry uses its own texture in host scenes.
+    glBindTexture(GL_TEXTURE_2D,rockTexture);
+    if(volcanoList) glCallList(volcanoList);
+    else renderVolcano();
+    glPopAttrib();
+}
 void drawSceneGeometry() { drawTerrain();drawVolcano(); }
 void releaseTextures() {
+    if(terrainList) {glDeleteLists(terrainList,1);terrainList=0;}
+    if(volcanoList) {glDeleteLists(volcanoList,1);volcanoList=0;}
     if(rockTexture) {glDeleteTextures(1,&rockTexture);rockTexture=0;}
     if(groundTexture) {glDeleteTextures(1,&groundTexture);groundTexture=0;}
 }
@@ -192,4 +302,7 @@ float craterCenterY() {return CRATER_Y;}
 float craterCenterZ() {return 0.0f;}
 float craterRadius() {return CRATER_R;}
 float lavaFloorY() {return LAVA_FLOOR_Y;}
+float volcanoSurfaceY(float radius,float angleRadians) {
+    return mountainHeight(radius,angleRadians);
+}
 }

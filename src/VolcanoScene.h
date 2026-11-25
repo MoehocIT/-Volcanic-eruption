@@ -16,5 +16,7 @@ namespace VolcanoScene {
     float craterCenterZ();
     float craterRadius();
     float lavaFloorY();
+    // Surface height for lava paths; angle is in radians around the Y axis.
+    float volcanoSurfaceY(float radius, float angleRadians);
 }
 #endif

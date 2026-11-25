@@ -1,5 +1,6 @@
 // Demo xem san pham cua Nhi, KHONG phai module camera chinh nha.
 #include "VolcanoScene.h"
+#include "VolcanoEffects.h"
 #include <GL/glut.h>
 #include <cmath>
 #include <cstdio>
@@ -8,6 +9,7 @@
 static float yaw=40.0f,pitch=28.0f,distance=75.0f;
 static bool wire=false,lightOn=true;
 static int winW=1100,winH=700;
+static int lastUpdateTime=0;
 const float PI=3.14159265358979323846f;
 void display() {
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -22,6 +24,7 @@ void display() {
     if(lightOn)glEnable(GL_LIGHTING);else glDisable(GL_LIGHTING);
     glPolygonMode(GL_FRONT_AND_BACK,wire?GL_LINE:GL_FILL);
     VolcanoScene::drawSceneGeometry();
+    VolcanoEffects::draw();
     glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     glutSwapBuffers();
 }
@@ -33,7 +36,7 @@ void reshape(int w,int h) {
 }
 void key(unsigned char k,int,int) {
     switch(k) {
-        case 27: VolcanoScene::releaseTextures();std::exit(0);
+        case 27: VolcanoEffects::release();VolcanoScene::releaseTextures();std::exit(0);
         case 'a':case 'A':yaw-=5;break;
         case 'd':case 'D':yaw+=5;break;
         case 'w':case 'W':pitch+=4;if(pitch>82)pitch=82;break;
@@ -43,6 +46,14 @@ void key(unsigned char k,int,int) {
         case 'f':case 'F':wire=!wire;break;
         case 'l':case 'L':lightOn=!lightOn;break;
     }
+    glutPostRedisplay();
+}
+void idle() {
+    const int now=glutGet(GLUT_ELAPSED_TIME);
+    if(lastUpdateTime==0)lastUpdateTime=now;
+    const float delta=(now-lastUpdateTime)*0.001f;
+    lastUpdateTime=now;
+    VolcanoEffects::update(delta);
     glutPostRedisplay();
 }
 int main(int argc,char**argv) {
@@ -65,7 +76,10 @@ int main(int argc,char**argv) {
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
     VolcanoScene::initTextures();
+    VolcanoEffects::init();
+    lastUpdateTime=glutGet(GLUT_ELAPSED_TIME);
     glutDisplayFunc(display);glutReshapeFunc(reshape);glutKeyboardFunc(key);
+    glutIdleFunc(idle);
     std::puts("A/D: xoay | W/S: nang/ha | +/-: phong/thu | F: luoi | L: den | ESC: thoat");
     glutMainLoop();
     return 0;
