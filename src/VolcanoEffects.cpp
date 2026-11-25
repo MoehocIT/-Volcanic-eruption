@@ -6,8 +6,9 @@
 namespace {
 const float PI = 3.14159265358979323846f;
 const int FLAME_COUNT = 34;
-const int SMOKE_COUNT = 24;
+const int SMOKE_COUNT = 40;
 const int EMBER_COUNT = 48;
+const int ASH_COUNT = 32;
 
 struct Particle {
     float x, y, z;
@@ -18,6 +19,7 @@ struct Particle {
 Particle flames[FLAME_COUNT];
 Particle smoke[SMOKE_COUNT];
 Particle embers[EMBER_COUNT];
+Particle ash[ASH_COUNT];
 unsigned int randomState = 0x51F15EEDu;
 float elapsed = 0.0f;
 bool initialized = false;
@@ -51,20 +53,41 @@ void spawnFlame(Particle &p, bool stagger) {
 
 void spawnSmoke(Particle &p, bool stagger) {
     const float angle = range(0.0f, 2.0f * PI);
-    const float radius = std::sqrt(random01()) * 0.72f;
+    const float radius = std::sqrt(random01()) * 0.52f;
     p.x = VolcanoScene::craterCenterX() + radius * std::cos(angle);
     p.z = VolcanoScene::craterCenterZ() + radius * std::sin(angle);
     p.y = VolcanoScene::craterCenterY() + 1.8f;
-    p.vx = range(-0.32f, 0.32f);
-    p.vz = range(-0.32f, 0.32f);
-    p.vy = range(1.05f, 1.8f);
-    p.life = range(3.0f, 4.8f);
+    const float burst = range(0.25f,0.85f);
+    p.vx = burst * std::cos(angle) + range(-0.25f,0.25f);
+    p.vz = burst * std::sin(angle) + range(-0.25f,0.25f);
+    p.vy = range(1.25f,2.2f);
+    p.life = range(4.2f,6.2f);
     p.age = stagger ? range(0.0f, p.life) : 0.0f;
-    p.size = range(0.48f, 0.9f);
+    p.size = range(0.72f,1.18f);
     p.phase = range(0.0f, 2.0f * PI);
     p.y += p.vy * p.age;
     p.x += p.vx * p.age;
     p.z += p.vz * p.age;
+}
+
+void spawnAsh(Particle &p, bool stagger) {
+    const float angle=range(0.0f,2.0f*PI);
+    const float radius=std::sqrt(random01())*0.34f;
+    const float burst=range(0.55f,2.0f);
+    p.x=VolcanoScene::craterCenterX()+radius*std::cos(angle);
+    p.z=VolcanoScene::craterCenterZ()+radius*std::sin(angle);
+    p.y=VolcanoScene::craterCenterY()+0.08f;
+    p.vx=burst*std::cos(angle)+range(-0.45f,0.45f);
+    p.vz=burst*std::sin(angle)+range(-0.45f,0.45f);
+    p.vy=range(3.0f,5.8f);
+    p.life=range(2.1f,3.8f);
+    p.age=stagger ? range(0.0f,p.life) : 0.0f;
+    p.size=range(0.24f,0.58f);
+    p.phase=range(0.0f,2.0f*PI);
+    p.x+=p.vx*p.age;
+    p.z+=p.vz*p.age;
+    p.y+=p.vy*p.age-1.3f*p.age*p.age;
+    p.vy-=2.6f*p.age;
 }
 
 void spawnEmber(Particle &p, bool stagger) {
@@ -277,24 +300,27 @@ void drawEmbers(float rightX, float rightY, float rightZ,
     }
 }
 
-void drawSmoke(float rightX, float rightY, float rightZ,
-               float upX, float upY, float upZ) {
+void drawPuffCloud(const Particle *particles, int count,
+                   float red, float green, float blue,
+                   float opacity, float driftScale,
+                   float rightX, float rightY, float rightZ,
+                   float upX, float upY, float upZ) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     GLfloat modelview[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
-    int order[SMOKE_COUNT];
-    float eyeDepth[SMOKE_COUNT];
+    int order[ASH_COUNT > SMOKE_COUNT ? ASH_COUNT : SMOKE_COUNT];
+    float eyeDepth[ASH_COUNT > SMOKE_COUNT ? ASH_COUNT : SMOKE_COUNT];
 
     // Alpha blending depends on draw order: render the most distant puffs first.
-    for (int i = 0; i < SMOKE_COUNT; ++i) {
-        const Particle &p = smoke[i];
-        const float centerX = p.x + 0.12f * std::sin(elapsed * 1.2f + p.phase);
-        const float centerZ = p.z + 0.08f * std::cos(elapsed + p.phase);
+    for (int i = 0; i < count; ++i) {
+        const Particle &p = particles[i];
+        const float centerX = p.x + driftScale * std::sin(elapsed * 0.85f + p.phase);
+        const float centerZ = p.z + driftScale * 0.55f * std::cos(elapsed + p.phase);
         order[i] = i;
         eyeDepth[i] = modelview[2] * centerX + modelview[6] * p.y
                     + modelview[10] * centerZ + modelview[14];
     }
-    for (int i = 1; i < SMOKE_COUNT; ++i) {
+    for (int i = 1; i < count; ++i) {
         const int particleIndex = order[i];
         const float depth = eyeDepth[particleIndex];
         int j = i;
@@ -305,30 +331,41 @@ void drawSmoke(float rightX, float rightY, float rightZ,
         order[j] = particleIndex;
     }
 
-    for (int drawIndex = 0; drawIndex < SMOKE_COUNT; ++drawIndex) {
-        const Particle &p = smoke[order[drawIndex]];
+    for (int drawIndex = 0; drawIndex < count; ++drawIndex) {
+        const Particle &p = particles[order[drawIndex]];
         const float t = p.age / p.life;
-        const float fadeIn = t < 0.18f ? t / 0.18f : 1.0f;
-        const float fadeOut = t > 0.78f ? (1.0f - t) / 0.22f : 1.0f;
-        const float alpha = 0.25f * fadeIn * fadeOut;
-        const float size = p.size * (0.55f + 1.35f * t);
-        const float drift = 0.12f * std::sin(elapsed * 1.2f + p.phase);
+        const float fadeIn = t < 0.12f ? t / 0.12f : 1.0f;
+        const float fadeOut = t > 0.80f ? (1.0f - t) / 0.20f : 1.0f;
+        const float alpha = opacity * fadeIn * fadeOut;
+        const float size = p.size * (0.62f + 1.55f * t);
+        const float drift = driftScale * std::sin(elapsed * 0.85f + p.phase);
         const float centerX = p.x + drift;
-        const float centerZ = p.z + 0.08f * std::cos(elapsed + p.phase);
+        const float centerZ = p.z + driftScale * 0.55f * std::cos(elapsed + p.phase);
 
         glBegin(GL_TRIANGLE_FAN);
-        glColor4f(0.32f, 0.31f, 0.30f, alpha);
-        vertexBillboard(centerX, p.y, centerZ, rightX, rightY, rightZ,
-                        upX, upY, upZ, 0.0f, 0.0f);
-        glColor4f(0.20f, 0.19f, 0.18f, 0.0f);
+        glColor4f(red,green,blue,alpha);
+        vertexBillboard(centerX,p.y,centerZ,rightX,rightY,rightZ,
+                        upX,upY,upZ,0.0f,0.0f);
+        glColor4f(red*0.78f,green*0.78f,blue*0.78f,0.0f);
         for (int edge = 0; edge <= 20; ++edge) {
             const float angle = 2.0f * PI * edge / 20.0f;
-            vertexBillboard(centerX, p.y, centerZ, rightX, rightY, rightZ,
-                            upX, upY, upZ, size * std::cos(angle),
-                            size * std::sin(angle));
+            vertexBillboard(centerX,p.y,centerZ,rightX,rightY,rightZ,
+                            upX,upY,upZ,size*std::cos(angle),size*std::sin(angle));
         }
         glEnd();
     }
+}
+
+void drawSmoke(float rightX, float rightY, float rightZ,
+               float upX, float upY, float upZ) {
+    drawPuffCloud(smoke,SMOKE_COUNT,0.34f,0.33f,0.32f,0.42f,0.18f,
+                  rightX,rightY,rightZ,upX,upY,upZ);
+}
+
+void drawAsh(float rightX, float rightY, float rightZ,
+             float upX, float upY, float upZ) {
+    drawPuffCloud(ash,ASH_COUNT,0.27f,0.23f,0.19f,0.38f,0.10f,
+                  rightX,rightY,rightZ,upX,upY,upZ);
 }
 }
 
@@ -339,6 +376,7 @@ void init() {
     for (int i = 0; i < FLAME_COUNT; ++i) spawnFlame(flames[i], true);
     for (int i = 0; i < SMOKE_COUNT; ++i) spawnSmoke(smoke[i], true);
     for (int i = 0; i < EMBER_COUNT; ++i) spawnEmber(embers[i], true);
+    for (int i = 0; i < ASH_COUNT; ++i) spawnAsh(ash[i], true);
     initialized = true;
 }
 
@@ -379,6 +417,17 @@ void update(float deltaSeconds) {
             p.vy-=5.6f*dt;
         }
     }
+    for (int i = 0; i < ASH_COUNT; ++i) {
+        Particle &p=ash[i];
+        p.age+=dt;
+        if(p.age>=p.life) spawnAsh(p,false);
+        else {
+            p.x+=p.vx*dt;
+            p.z+=p.vz*dt;
+            p.y+=p.vy*dt-1.3f*dt*dt;
+            p.vy-=2.6f*dt;
+        }
+    }
 }
 
 void draw() {
@@ -400,7 +449,8 @@ void draw() {
     drawLavaFlows();
     drawFlames(rightX, rightY, rightZ, upX, upY, upZ);
     drawEmbers(rightX, rightY, rightZ, upX, upY, upZ);
-    drawSmoke(rightX, rightY, rightZ, upX, upY, upZ);
+    drawAsh(rightX,rightY,rightZ,upX,upY,upZ);
+    drawSmoke(rightX,rightY,rightZ,upX,upY,upZ);
 
     glPopAttrib();
 }
