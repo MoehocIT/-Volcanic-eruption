@@ -220,13 +220,13 @@ void drawFlameTongue(float x,float y,float z,
     vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,-width,0.0f);
     vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,width,0.0f);
     glColor4f(1.0f,0.38f,0.015f,0.18f*alpha);
-    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway,height,0.0f);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway,height);
 
     glColor4f(1.0f,0.42f,0.015f,0.92f*alpha);
     vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,-width*0.48f,0.0f);
     vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,width*0.48f,0.0f);
     glColor4f(1.0f,0.94f,0.28f,0.78f*alpha);
-    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway*0.45f,height*0.58f,0.0f);
+    vertexBillboard(x,y,z,rightX,rightY,rightZ,upX,upY,upZ,sway*0.45f,height*0.58f);
     glEnd();
 }
 
