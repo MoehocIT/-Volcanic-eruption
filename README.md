@@ -4,6 +4,7 @@
 - Dia hinh 3D dang heightmap tao tu value noise; mat dat co doi nhe bao quanh nui.
 - Dia hinh co doi tro va song nui nho, phu texture tro den am va da bazan low-poly quanh chan nui.
 - Duong chan troi co cac day nui lua xa, them chieu sau cho vung dat xung quanh.
+- Suong khi quyen trong demo giup tach lop nui gan va xa, co the bat/tat bang phim H.
 - Nui lua 3D mesh vong tron voi suon doc, mieng rong va long chao ben trong.
 - Mat da va mat dat su dung procedural texture OpenGL, khong phai tai anh.
 - Mesh tinh duoc cache bang OpenGL display list sau lan ve dau tien, tranh tinh lai noise va phap tuyen moi khung hinh.
@@ -48,6 +49,7 @@ Compiler su dung C++98.
 - + / -: Thu/phong
 - F: Bat/tat wireframe
 - L: Bat/tat anh sang
+- H: Bat/tat suong khi quyen
 - ESC: Thoat
 
 ## Tich hop vao project chung

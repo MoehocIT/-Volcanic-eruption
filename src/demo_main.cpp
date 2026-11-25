@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 static float yaw=40.0f,pitch=28.0f,distance=75.0f;
-static bool wire=false,lightOn=true;
+static bool wire=false,lightOn=true,fogOn=true;
 static int winW=1100,winH=700;
 static int lastUpdateTime=0;
 const float PI=3.14159265358979323846f;
@@ -22,6 +22,7 @@ void display() {
     GLfloat pos[]={-30.0f,55.0f,25.0f,1.0f};
     glLightfv(GL_LIGHT0,GL_POSITION,pos);
     if(lightOn)glEnable(GL_LIGHTING);else glDisable(GL_LIGHTING);
+    if(fogOn)glEnable(GL_FOG);else glDisable(GL_FOG);
     glPolygonMode(GL_FRONT_AND_BACK,wire?GL_LINE:GL_FILL);
     VolcanoScene::drawSceneGeometry();
     VolcanoEffects::draw();
@@ -45,6 +46,7 @@ void key(unsigned char k,int,int) {
         case '-':case '_':distance+=3;if(distance>150)distance=150;break;
         case 'f':case 'F':wire=!wire;break;
         case 'l':case 'L':lightOn=!lightOn;break;
+        case 'h':case 'H':fogOn=!fogOn;break;
     }
     glutPostRedisplay();
 }
@@ -75,12 +77,19 @@ int main(int argc,char**argv) {
     glEnable(GL_LIGHT0);
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+    GLfloat fogColor[]={0.63f,0.76f,0.85f,1.0f};
+    glFogi(GL_FOG_MODE,GL_LINEAR);
+    glFogf(GL_FOG_START,36.0f);
+    glFogf(GL_FOG_END,125.0f);
+    glFogfv(GL_FOG_COLOR,fogColor);
+    glHint(GL_FOG_HINT,GL_NICEST);
+    glEnable(GL_FOG);
     VolcanoScene::initTextures();
     VolcanoEffects::init();
     lastUpdateTime=glutGet(GLUT_ELAPSED_TIME);
     glutDisplayFunc(display);glutReshapeFunc(reshape);glutKeyboardFunc(key);
     glutIdleFunc(idle);
-    std::puts("A/D: xoay | W/S: nang/ha | +/-: phong/thu | F: luoi | L: den | ESC: thoat");
+    std::puts("A/D: xoay | W/S: nang/ha | +/-: phong/thu | F: luoi | L: den | H: suong | ESC: thoat");
     glutMainLoop();
     return 0;
 }
